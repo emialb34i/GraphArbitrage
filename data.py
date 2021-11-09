@@ -1,14 +1,14 @@
 import requests
 import json
-import time
+import os
 
-API_KEY = "b4a25ed0b5226baed12a4087c91f31b21300f861a2accda388769cd527405cd3"
+API_KEY = os.environ.get('API_KEY')
 
 def exchange_pairs():
     url = f"https://min-api.cryptocompare.com/data/v4/all/exchanges?{API_KEY}"
     response = requests.get(url)
     with open('exchange_pairs.json', 'w') as f:
-        json.dump(response.json(), f)
+        json.dump(response.json()["Data"]["exchanges"]["Binance"]["pairs"], f)
 
 def connected_pairs():
     with open("exchange_pairs.json") as f:
@@ -18,13 +18,19 @@ def connected_pairs():
     return {k: v for k, v in zip(keys, vals) if len(v) > 3}
 
 def spot_rates_snapshot():
-    url = f"https://min-api.cryptocompare.com/data/v2/pair/mapping/exchange?e=Binance&api_key={API_KEY}"
-    response = requests.get(url)
-    with open('spot_rates_snapshot.json', 'w') as f:
-        json.dump(response.json(), f)
+    d = connected_pairs()
+    snapshot = []
+    for fsyms in list(d.keys()):
+        tsyms = ','.join(d[fsyms])
+        url = f"https://min-api.cryptocompare.com/data/pricemulti?fsyms={fsyms}&tsyms={tsyms}&e=Binance&api_key={API_KEY}"
+        res = requests.get(url).json()
+        snapshot.append(res)
+    with open("spot_rates_snapshot.json", "w") as f:
+        json.dump(snapshot, f)
 
-    
+def create_adj_matrix():
+    pass
 
 if __name__ == '__main__':
     exchange_pairs()
-    spot_rates_snapshot()
+    # spot_rates_snapshot()
