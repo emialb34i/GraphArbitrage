@@ -15,17 +15,17 @@ def exchange_pairs():
     # returns pairs tradable on binance
     url = f"https://min-api.cryptocompare.com/data/v4/all/exchanges?{API_KEY}"
     response = requests.get(url)
-    with open('exchange_pairs.json', 'w') as f:
+    with open('data/exchange_pairs.json', 'w') as f:
         json.dump(response.json()["Data"]["exchanges"]["Binance"]["pairs"], f)
 
 
 def connected_pairs():
     # process raw json file to return dict of tradable pairs on Binance
-    with open("exchange_pairs.json") as f:
+    with open("data/exchange_pairs.json") as f:
         data = json.load(f)
     keys = list(data.keys())
     vals = [list(data[k]["tsyms"]) for k in keys]
-    return {k: v for k, v in zip(keys, vals) if len(v) > 3}
+    return {k: v for k, v in zip(keys, vals)}
 
 
 def spot_rates_snapshot():
@@ -37,14 +37,16 @@ def spot_rates_snapshot():
         url = f"https://min-api.cryptocompare.com/data/pricemulti?fsyms={fsyms}&tsyms={tsyms}&e=Binance&api_key={API_KEY}"
         res = requests.get(url).json()
         snapshot.update(res)
-    with open("spot_rates_snapshot.json", "w") as f:
+    with open("data/spot_rates_snapshot.json", "w") as f:
         json.dump(snapshot, f)
-    return d
 
 
-def create_adj_matrix(data):
+def create_adj_matrix():
+    # creates an adjcecency matrix by turning the spot rates 
+    # snapshot into a dataframe and saves it as a csv
+    data = connected_pairs()
 
-    with open("spot_rates_snapshot.json") as f:
+    with open("data/spot_rates_snapshot.json") as f:
         price = json.load(f)
 
     keys = set(data.keys())
@@ -56,9 +58,13 @@ def create_adj_matrix(data):
     for fsym in price:
         pairs = list(price[fsym].keys())
         for tsym in pairs:
-            print(fsym, tsym, price[fsym][tsym])
             df.loc[fsym, tsym] = price[fsym][tsym]
 
+    # df = df.dropna(how='all', axis=1)
+    # df = df.dropna(how='all', axis=0)
+    # TODO add fiat currencies exchange rates 
     df = df.fillna(0.0)
-    
+
+    df.to_csv("data/snapshot.csv")
+
     return df
